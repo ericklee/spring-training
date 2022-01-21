@@ -4,9 +4,12 @@ import com.hkjc.accountsvc.domain.Account;
 import com.hkjc.accountsvc.domain.Transaction;
 import com.hkjc.accountsvc.domain.TransactionType;
 import com.hkjc.accountsvc.dto.CreateTransactionRequestDto;
+import com.hkjc.accountsvc.dto.TransactionNotificationDto;
 import com.hkjc.accountsvc.exception.AccountNotFoundException;
 import com.hkjc.accountsvc.repository.AccountRepository;
 import com.hkjc.accountsvc.repository.TransactionRepository;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,10 +20,12 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
+    private final StreamBridge streamBridge;
 
-    public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository) {
+    public TransactionService(TransactionRepository transactionRepository, AccountRepository accountRepository, StreamBridge streamBridge) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
+        this.streamBridge = streamBridge;
     }
 
     public Long saveTransaction(CreateTransactionRequestDto createTransactionRequestDto) {
@@ -31,8 +36,14 @@ public class TransactionService {
         } else {
             accountEntity.setBalance(accountEntity.getBalance().subtract(createTransactionRequestDto.getAmount()));
         }
+
+        Transaction transaction = toTransactionEntity(createTransactionRequestDto);
+        Long transactionId = transactionRepository.save(transaction).getTransactionId();
         accountRepository.save(accountEntity);
-        return transactionRepository.save(toTransactionEntity(createTransactionRequestDto)).getTransactionId();
+
+        streamBridge.send("transaction-notification", MessageBuilder.withPayload(new TransactionNotificationDto((transactionId))).build());
+
+        return transactionId;
     }
 
     private Transaction toTransactionEntity(CreateTransactionRequestDto createTransactionRequestDto) {
@@ -44,4 +55,5 @@ public class TransactionService {
         transaction.setAccountId(createTransactionRequestDto.getAccountId());
         return transaction;
     }
+
 }
