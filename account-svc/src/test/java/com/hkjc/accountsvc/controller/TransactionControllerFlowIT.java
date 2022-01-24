@@ -9,11 +9,13 @@ import com.hkjc.accountsvc.repository.TransactionRepository;
 import org.assertj.core.api.Assertions;
 import org.hibernate.dialect.PostgreSQL9Dialect;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -48,7 +50,6 @@ public class TransactionControllerFlowIT {
     @Autowired
     RabbitTemplate rabbitTemplate;
 
-    @Autowired
     @DynamicPropertySource
     public static void setup(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", () -> container.getJdbcUrl());
@@ -57,6 +58,24 @@ public class TransactionControllerFlowIT {
         registry.add("spring.jpa.database-platform", PostgreSQL9Dialect.class::getName);
         registry.add("spring.rabbitmq.host", rabbitMQContainer::getHost);
         registry.add("spring.rabbitmq.port", rabbitMQContainer::getAmqpPort);
+    }
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public Queue queue() {
+            return new Queue("transaction-notification", false);
+        }
+
+        @Bean
+        public Exchange exchange() {
+            return new TopicExchange("transaction-notification");
+        }
+
+        @Bean
+        public Binding binding() {
+            return BindingBuilder.bind(queue()).to(exchange()).with("#").noargs();
+        }
     }
 
     @Test
@@ -83,7 +102,7 @@ public class TransactionControllerFlowIT {
         Assertions.assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         Assertions.assertThat(exchange.getHeaders().getLocation()).isNotNull();
 
-        Message message = rabbitTemplate.receive("transaction-notification");
+        Message message = rabbitTemplate.receive("transaction-notification", 5000);
         Assertions.assertThat(message).isNotNull();
     }
 
