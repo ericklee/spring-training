@@ -4,7 +4,7 @@ import com.hkjc.notificationsvc.domain.Recipient;
 import com.hkjc.notificationsvc.dto.RecipientDto;
 import org.mapstruct.*;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface RecipientMapper {
 
     @Mapping(source = "id", target = "accountId")

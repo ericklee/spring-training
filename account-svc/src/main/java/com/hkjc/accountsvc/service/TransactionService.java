@@ -4,6 +4,7 @@ import com.hkjc.accountsvc.domain.Account;
 import com.hkjc.accountsvc.domain.Transaction;
 import com.hkjc.accountsvc.domain.TransactionType;
 import com.hkjc.accountsvc.dto.CreateTransactionRequestDto;
+import com.hkjc.accountsvc.dto.TransactionDto;
 import com.hkjc.accountsvc.dto.TransactionNotificationDto;
 import com.hkjc.accountsvc.exception.AccountNotFoundException;
 import com.hkjc.accountsvc.repository.AccountRepository;
@@ -26,6 +27,11 @@ public class TransactionService {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.streamBridge = streamBridge;
+    }
+
+    public TransactionDto getTransaction(Long transactionId) {
+        Transaction transaction = transactionRepository.getById(transactionId);
+        return toTransactionDto(transaction);
     }
 
     public Long saveTransaction(CreateTransactionRequestDto createTransactionRequestDto) {
@@ -54,6 +60,17 @@ public class TransactionService {
         transaction.setAmount(createTransactionRequestDto.getAmount());
         transaction.setAccountId(createTransactionRequestDto.getAccountId());
         return transaction;
+    }
+
+    private TransactionDto toTransactionDto(Transaction transaction) {
+        TransactionDto transactionDto = new TransactionDto();
+        transactionDto.setTransactionId(transaction.getTransactionId());
+        transactionDto.setTransactionType(transaction.getTransactionType());
+        transactionDto.setTransactionDate(transaction.getTransactionDate());
+        transactionDto.setDescription(transaction.getDescription());
+        transactionDto.setAmount(transaction.getAmount());
+        transactionDto.setAccountId(transaction.getAccountId());
+        return transactionDto;
     }
 
 }
